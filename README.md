@@ -553,6 +553,58 @@ You can choose a different CAN interface with `--interface`:
 ./collect_traffic_logs.py --duration 15 --filename can0_run.log --interface can0
 ```
 
+## Experiment #5 — End-to-end CAN Injection demo (attack + defense)
+
+This experiment reproduces the **logical core of the CAN Injection attack** (the technique used to steal keyless cars, [CVE-2023-29389](https://nvd.nist.gov/vuln/detail/CVE-2023-29389), publicized by Ken Tindell) and contrasts it with a cryptographic defense — all on the virtual CAN infrastructure.
+
+The demo is self-contained: it reuses the project's **real artifacts** — the spoof payloads from `attacks/reverse_engineering.py`, the DBC schema in `data/carla.dbc`, and the `id_time` IDS from `defense/id_time_intrusion_detection.py` — and orchestrates, in a single process, legitimate ECUs, a victim ECU, the IDS, and an attacker. It runs through four phases:
+
+1. **Normal traffic** — legitimate ECUs transmit; the IDS stays at baseline.
+2. **CAN Injection (door spoofing)** — the attacker injects frames on CAN ID `0x60C` (`DOORS`): the door unlocks without authorization, and the timing IDS does **not** flag it (a legitimate, sporadic ID).
+3. **CAN Injection (hand-brake flood)** — flooding CAN ID `0x604` (`HAND_BRAKE`, a periodic message) engages the hand brake and **is detected** by the IDS as a cadence anomaly.
+4. **SecOC/MAC defense** — the door message now requires an authenticated payload (command + freshness counter + truncated MAC); the same spoof is **rejected**, and only a command carrying a valid MAC unlocks the door.
+
+### Running the demo
+
+**Self-contained mode (recommended for study/teaching).** This uses python-can's `virtual` backend, so it needs **no `sudo` and no kernel vcan** — you can run it without starting CARLA or the network environment:
+
+```bash
+conda run --no-capture-output -n n4s_env python3 -m attacks.can_injection_demo
+```
+
+**Real virtual-CAN mode.** After bringing up the environment (so `vcan0`/`vcan1` exist, see the *Minimal Test* section), you can run the same scenario over the project's real buses — legitimate ECUs/victim/IDS on `vcan0` and the attacker on `vcan1` (bridged to `vcan0` via `can-gw`):
+
+```bash
+conda run --no-capture-output -n n4s_env python3 -m attacks.can_injection_demo --iface socketcan
+```
+
+### Sample output
+
+```text
+FASE 1  -  Trafego normal (sem ataque)
+[IDS]    baseline: 50 frames legitimos; 14 falsos positivos (jitter)
+
+FASE 2  -  CAN INJECTION: spoof de DOORS (0x60C)
+[ATAQUE] injetando 0x60C payload=[0x01]
+[VITIMA] >>> PORTA DESTRANCADA sem autorizacao! (frame 0x60C aceito)
+[IDS]    anomalias no 0x60C = 0   ->  BYPASS
+
+FASE 3  -  CAN INJECTION: flood de HAND_BRAKE (0x604, periodico)
+[ATAQUE] injetando 0x604 a ~50 msg/s sobre a cadencia de 0.2s
+[VITIMA] freio de mao ACIONADO por frame injetado
+[IDS]    anomalias no 0x604 = 158 ->  DETECTADO
+
+FASE 4  -  DEFESA SecOC/MAC
+[ATAQUE] repete o mesmo spoof 0x60C=[0x01] (sem a chave)
+[VITIMA] comando de porta REJEITADO (MAC invalido -> spoof bloqueado)
+[INFO]   apos 10 tentativas de spoof: porta = TRANCADA (nenhuma aceita)
+[VITIMA] porta destrancada (comando AUTENTICADO aceito)
+```
+
+### Scope and limitations
+
+The demo reproduces the **logical** attack (frame spoofing exploiting the lack of authentication) and its end-to-end effect. It does **not** reproduce the **physical/electrical** innovation of the real CAN Injector — the modified transceiver with *dominant-state-override* that forces legitimate ECUs into *Bus Off* and suppresses error frames — because the `vcan`/`virtual` backend is a software abstraction of the data-link layer with no physical layer (no CAN-H/CAN-L voltages, bit-level arbitration, error frames, or Bus Off). A full discussion is in the accompanying reflection document, `CAN_Injection_Reflexao.pdf`.
+
 # Advanced usage - Customizing network messages and periods
 
 The virtual CAN network is configured via a DBC file. You can change CAN IDs and transmission periods without touching any code, which is useful, for example, when evaluating how well a detection algorithm generalises to a different network configuration.
