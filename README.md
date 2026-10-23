@@ -601,6 +601,36 @@ FASE 4  -  DEFESA SecOC/MAC
 [VITIMA] porta destrancada (comando AUTENTICADO aceito)
 ```
 
+### Running the attack against the live CARLA simulator (visual)
+
+The `can_injection_demo` above is a terminal-only simulation. To watch the **same attack play out on screen** — the vehicle reacting in the CARLA window, like Experiments #1 and #2 — use the orchestrated runner `attacks/can_injection_carla.py`. It injects the project's real spoof frames on the attacker bus (`vcan1`, bridged to `vcan0`) while narrating the phases in the terminal.
+
+First bring the full environment up (CARLA, the CARLA client, and `vcan0`/`vcan1`):
+
+```bash
+./1_up_environment.sh
+```
+
+Then, in another terminal, run the orchestrated attack:
+
+```bash
+conda run --no-capture-output -n n4s_env python3 -m attacks.can_injection_carla
+```
+
+It plays three phases you can present while watching the simulator:
+
+1. **Normal traffic** — the car behaves normally.
+2. **Door spoofing** (`0x60C`) — the door opens in CARLA without any keyboard input.
+3. **Hand-brake flood** (`0x604`) — the hand brake engages and the car cannot move.
+
+To also see the intrusion **detected**, run the IDS in a third terminal before the attack:
+
+```bash
+conda run --no-capture-output -n n4s_env python3 intrusion_detection_module.py --detector id_time
+```
+
+The SecOC/MAC **defense** (phase 4) is demonstrated in the terminal simulation above (`can_injection_demo`), since blocking the spoof live in CARLA would require adding message authentication to the CAN consumer.
+
 ### Scope and limitations
 
 The demo reproduces the **logical** attack (frame spoofing exploiting the lack of authentication) and its end-to-end effect. It does **not** reproduce the **physical/electrical** innovation of the real CAN Injector — the modified transceiver with *dominant-state-override* that forces legitimate ECUs into *Bus Off* and suppresses error frames — because the `vcan`/`virtual` backend is a software abstraction of the data-link layer with no physical layer (no CAN-H/CAN-L voltages, bit-level arbitration, error frames, or Bus Off). A full discussion is in the accompanying reflection document, `CAN_Injection_Reflexao.pdf`.
