@@ -611,6 +611,14 @@ First bring the full environment up (CARLA, the CARLA client, and `vcan0`/`vcan1
 ./1_up_environment.sh
 ```
 
+> **Prerequisites / troubleshooting.** The CARLA client window relies on the camera-sensor dependencies (PyAV, etc.). If your `n4s_env` was created before they were added, the client fails with `ModuleNotFoundError: No module named 'av'`. Install them once:
+>
+> ```bash
+> conda run -n n4s_env pip install -r requirements.txt
+> ```
+>
+> When `1_up_environment.sh` asks you to start the **AVTP receiver**, you can **skip it** for this experiment: just press `ENTER` in that terminal to bring up the CARLA clients. The receiver only displays the camera video stream and needs `ffmpeg`/`ffplay` (`sudo apt install ffmpeg`); it is not required to run the CAN Injection attack. If you skip it, you may see a `FileNotFoundError: ... 'ffplay'` in the receiver terminal — that is expected and harmless here.
+
 Then, in another terminal, run the orchestrated attack:
 
 ```bash
