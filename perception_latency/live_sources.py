@@ -1,6 +1,7 @@
 """Bounded inputs for the live perception consumer. No Torch in callbacks."""
 import io
 import socket
+import struct
 import threading
 import time
 from collections import deque
@@ -207,6 +208,10 @@ class AvtpSource(Source):
         self.stream = ByteStream()
         self.sequence = SequenceCounter()
         self.packets = 0
+        self.ts_bytes = 0
+        self.decoded_resolution = None
+        self.kernel_received = self.kernel_dropped = None
+        self.kernel_stats_error = None
         self.sock = None
 
     def start(self):
@@ -217,6 +222,7 @@ class AvtpSource(Source):
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
         except Exception:
             self.sock.close()
+            self.sock = None
             raise
         self.launch(self.capture, "avtp-capture")
         self.launch(self.decode, "avtp-decoder")
@@ -230,6 +236,7 @@ class AvtpSource(Source):
         payload = parse_mpegts_stream_packet(packet)
         if payload:
             self.packets += 1
+            self.ts_bytes += len(payload)
             self.sequence.observe(packet[16])
             self.stream.write(payload)
 
@@ -262,13 +269,19 @@ class AvtpSource(Source):
                             self.decode_errors += 1
                             continue
                         self.received += 1
+                        self.decoded_resolution = [frame.width, frame.height]
                         self.frames.publish(LiveFrame(frame.to_ndarray(format="rgb24"), self.received, time.perf_counter(),
                                                       float(frame.time) if frame.time is not None else None))
         finally:
             self.stream.close()
 
     def diagnostics(self):
-        return {**super().diagnostics(), "packets": self.packets, "missing_packets": self.sequence.missing,
+        return {**super().diagnostics(), "interface": self.interface, "stream_id": self.stream_id,
+                "transport": "ethernet", "mpegts_bytes": self.ts_bytes,
+                "decoded_resolution": self.decoded_resolution,
+                "kernel_received_packets": self.kernel_received, "kernel_dropped_packets": self.kernel_dropped,
+                "kernel_stats_error": self.kernel_stats_error,
+                "packets": self.packets, "missing_packets": self.sequence.missing,
                 "duplicate_packets": self.sequence.duplicates, "reordered_packets": self.sequence.reordered,
                 "dropped_bytes": self.stream.dropped_bytes}
 
@@ -276,7 +289,14 @@ class AvtpSource(Source):
         self.stop.set()
         self.stream.close()
         if self.sock is not None:
-            self.sock.close()
+            sock, self.sock = self.sock, None
+            try:
+                # Linux SOL_PACKET / PACKET_STATISTICS; reading resets the kernel
+                # counter, so collect it only once at shutdown, before closing.
+                self.kernel_received, self.kernel_dropped = struct.unpack("II", sock.getsockopt(263, 6, 8))
+            except OSError as exc:
+                self.kernel_stats_error = str(exc)
+            sock.close()
         super().close()
 
 

@@ -768,3 +768,5 @@ The optional `perception_latency` module runs the YOLOv5s detector on recorded C
 ```
 
 The [live perception panel](docs/perception-live.md) compares clean and perturbed frames side by side. Start an independent CARLA demo with `./scripts/live_perception_demo.sh`, or attach the panel to the existing vehicle with `./scripts/run_perception.sh live --source carla`.
+
+To run the original YCC camera, CAN controls and the AVTP perception receiver together, use `./scripts/live_perception_avtp.sh --auto-toggle 5 --duration 25` in a local terminal. It authenticates network setup with sudo, runs the simulator and detector as your user, and records Ethernet/video/CAN evidence in `pipeline.json`. Use `--check` for a read-only prerequisite check or `--attach` with an existing YCC environment. See the [AVTP workflow](docs/perception-live.md#consumir-o-vídeo-avtp) for details and validation limits.

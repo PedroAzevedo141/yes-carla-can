@@ -29,13 +29,13 @@ class World(object):
         self.radar_sensor = None
         self.camera_manager = None
         self.rgb_camera_sensor = None
+        self._tick_callback_id = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
         self.restart()
-        self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
         self.constant_velocity_enabled = False
@@ -120,6 +120,9 @@ class World(object):
         else:
             self.world.wait_for_tick()
 
+        if self._tick_callback_id is None:
+            self._tick_callback_id = self.world.on_tick(self.hud.on_world_tick)
+
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
         self._weather_index %= len(self._weather_presets)
@@ -171,6 +174,12 @@ class World(object):
         self.camera_manager.index = None
 
     def destroy(self):
+        # Native CARLA threads must stop calling Python before interpreter exit.
+        # Keep the registration ID so restarting the vehicle can subscribe again.
+        if self._tick_callback_id is not None:
+            self.world.remove_on_tick(self._tick_callback_id)
+            self._tick_callback_id = None
+
         if self.radar_sensor is not None:
             self.toggle_radar()
 

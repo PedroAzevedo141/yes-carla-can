@@ -109,6 +109,8 @@ def split_images(args):
 def main():
     parser = argparse.ArgumentParser(description="Groundswell / Yes CARLA CAN — laboratório de percepção")
     commands = parser.add_subparsers(dest="command", required=True)
+    from .ycc_avtp import register_parser
+    register_parser(commands)
     p = commands.add_parser("doctor", help="Verificar ambiente e modelo")
     p.add_argument("--load-model", action="store_true")
     p.add_argument("--device", default="cuda:0")
@@ -189,7 +191,10 @@ def main():
         parser.error("epsilon/alpha devem ser positivos; area-weight deve ser não negativo.")
     if args.command in {"baseline", "evaluate"} and not (0 < args.conf < 1 and 0 < args.iou < 1 and args.budget_ms > 0):
         parser.error("conf/iou devem estar entre 0 e 1; budget-ms deve ser positivo.")
-    if args.func == "live":
+    if args.func == "ycc-avtp":
+        from .ycc_avtp import run
+        raise SystemExit(run(args))
+    elif args.func == "live":
         import math
         values = [args.duration, args.auto_toggle, args.fps, args.server_timeout, args.conf, args.iou]
         if not all(math.isfinite(v) for v in values) or args.duration < 0 or args.auto_toggle < 0 or args.fps <= 0 or args.server_timeout <= 0 or args.traffic < 0:
