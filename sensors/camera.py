@@ -143,6 +143,10 @@ class RGBCameraSensor(object):
         self.surface = None          # pygame.Surface, updated each frame
         self.array = None            # numpy (H, W, 3) uint8 RGB, updated each frame
         self.recording = False       # set True to auto-save every frame to disk
+        self.perception_experiment = None
+        if os.environ.get("YES_CARLA_CAPTURE_DIR") or os.environ.get("YES_CARLA_DELTA"):
+            from perception_latency.camera_hook import CameraExperiment
+            self.perception_experiment = CameraExperiment()
 
         self.enabled = True  # Flag de controle
 
@@ -223,6 +227,9 @@ class RGBCameraSensor(object):
             finally:
                 self.sensor = None
 
+        if self.perception_experiment is not None:
+            self.perception_experiment.close()
+
         # 2. Fechar o encoder MPEG-TS/PyAV
         if hasattr(self, 'ts_encoder') and self.ts_encoder:
             self.ts_encoder.close()
@@ -273,6 +280,8 @@ class RGBCameraSensor(object):
 
 
         # Mantém o BGRA apenas para o OpenCV codificar para JPEG
+        if self.perception_experiment is not None:
+            array = self.perception_experiment.process_bgra(array, image.frame, image.timestamp)
         bgra_array = array
 
        # Prepara a exibição no PyGame (Converte BGR -> RGB)

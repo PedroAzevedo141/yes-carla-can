@@ -1,0 +1,17 @@
+# Optional, tested adapter stack for Python 3.9; separate from the paper's stack.
+# Install only when working on perception; the main project installer is unchanged.
+torch==2.8.0
+torchvision==0.23.0
+numpy==2.0.2
+opencv-python==5.0.0.93
+av==15.1.0
+pandas==2.2.3
+matplotlib==3.9.2
+seaborn==0.13.2
+PyYAML==6.0.2
+Pillow==10.4.0
+requests==2.32.3
+tqdm==4.66.5
+scipy==1.13.1
+setuptools==80.9.0
+pygame==2.6.1

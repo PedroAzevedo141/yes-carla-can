@@ -757,3 +757,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+
+## Camera perception and latency experiments
+
+The optional `perception_latency` module runs the YOLOv5s detector on recorded CARLA frames, saves annotated images, and measures inference and NMS separately. It also provides an adapter for the Groundswell research artifact and an optional clean-frame capture hook. See [the experiment guide](docs/perception-latency.md) for setup, commands, metrics, and limitations.
+
+```bash
+./scripts/run_perception.sh doctor --load-model
+```
+
+The [live perception panel](docs/perception-live.md) compares clean and perturbed frames side by side. Start an independent CARLA demo with `./scripts/live_perception_demo.sh`, or attach the panel to the existing vehicle with `./scripts/run_perception.sh live --source carla`.

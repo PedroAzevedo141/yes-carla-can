@@ -185,3 +185,5 @@ candump*
 *.pcap
 
 output_stream*
+# Optional perception experiments: external artifacts, datasets, caches and runs
+.perception/
